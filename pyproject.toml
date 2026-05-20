@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ralph"
+version = "1.0.2"
+description = "Installable Ralph loop command for OpenCode"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ralph = "ralph.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest==8.3.5",
+  "pytest-cov==6.0.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=ralph --cov-report=term-missing --cov-fail-under=80"
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+extraPaths = ["src"]
+venvPath = "."
+venv = ".venv"

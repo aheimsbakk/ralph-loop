@@ -1,0 +1,13 @@
+todo.txt
+done.txt
+ralph-loop.local.md
+ralph-loop.local.md.tmp
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+dist/
+htmlcov/
+*.egg-info/
+.qa-error.log

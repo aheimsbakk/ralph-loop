@@ -92,6 +92,7 @@ def test_start_command_dispatches(
 
     def fake_start(args: argparse.Namespace, directory: Path) -> int:
         called["agent"] = args.agent
+        called["opencode_args"] = args.opencode_args
         called["directory"] = directory
         return 7
 
@@ -102,7 +103,55 @@ def test_start_command_dispatches(
     )
 
     assert exit_code == 7
-    assert called == {"agent": "vibe", "directory": tmp_path}
+    assert called == {"agent": "vibe", "opencode_args": [], "directory": tmp_path}
+
+
+def test_pre_command_opencode_options_are_forwarded_to_start_args(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    called: dict[str, object] = {}
+
+    def fake_start(args: argparse.Namespace, directory: Path) -> int:
+        called["opencode_args"] = args.opencode_args
+        called["state_file"] = args.state_file
+        called["model"] = args.model
+        called["directory"] = directory
+        return 0
+
+    monkeypatch.setattr(cli, "start_command", fake_start)
+
+    exit_code = cli.main(
+        [
+            "--print-logs",
+            "-s",
+            "session-123",
+            "-m",
+            "root/model",
+            "start",
+            "-a",
+            "vibe",
+            "-m",
+            "task/model",
+            "-s",
+            "custom-state.md",
+            "Prompt",
+        ],
+        directory=tmp_path,
+    )
+
+    assert exit_code == 0
+    assert called == {
+        "opencode_args": [
+            "--print-logs",
+            "-s",
+            "session-123",
+            "-m",
+            "root/model",
+        ],
+        "state_file": "custom-state.md",
+        "model": "task/model",
+        "directory": tmp_path,
+    }
 
 
 def test_start_defaults_are_applied() -> None:

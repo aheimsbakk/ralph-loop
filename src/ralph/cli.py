@@ -16,12 +16,34 @@ from .runtime import CommandError
 
 
 USAGE_TEXT = """Usage:
-  ralph <command> [options]
+  ralph [opencode-options...] <command> [options]
   ralph start -a AGENT -m MODEL [options] <prompt>
   ralph status [options]
   ralph help [start|status]
   ralph --help
   ralph --version"""
+
+COMMAND_NAMES = frozenset({"start", "status", "help"})
+PASSTHROUGH_OPTIONS: dict[str, bool] = {
+    "--print-logs": False,
+    "--log-level": True,
+    "--pure": False,
+    "--port": True,
+    "--hostname": True,
+    "--mdns": False,
+    "--mdns-domain": True,
+    "--cors": True,
+    "-m": True,
+    "--model": True,
+    "-c": False,
+    "--continue": False,
+    "-s": True,
+    "--session": True,
+    "--fork": False,
+    "--prompt": True,
+    "--agent": True,
+}
+RALPH_GLOBAL_OPTIONS = frozenset({"-h", "--help", "-v", "--version"})
 
 PROMISE_GUIDANCE = f"""Hint: add the same completion promise to your prompt.
 
@@ -110,7 +132,11 @@ def main(argv: list[str] | None = None, directory: Path | None = None) -> int:
         return 0
 
     try:
-        args = parser.parse_args(args_list)
+        opencode_args, parser_args = split_pre_command_args(args_list)
+        if not parser_args:
+            raise CommandError("error: missing command")
+        args = parser.parse_args(parser_args)
+        args.opencode_args = opencode_args
         return _dispatch(
             args, parser, parsers, Path.cwd() if directory is None else directory
         )
@@ -142,3 +168,48 @@ def _dispatch(
         return status_command(args, directory)
 
     raise CommandError(f"unknown command: {args.command}")
+
+
+def split_pre_command_args(args_list: list[str]) -> tuple[list[str], list[str]]:
+    opencode_args: list[str] = []
+    index = 0
+
+    while index < len(args_list):
+        token = args_list[index]
+        if token in COMMAND_NAMES:
+            return opencode_args, args_list[index:]
+        if token in RALPH_GLOBAL_OPTIONS:
+            return opencode_args, args_list[index:]
+
+        option = _match_passthrough_option(token)
+        if option is None:
+            return opencode_args, args_list[index:]
+
+        name, expects_value = option
+        opencode_args.append(token)
+        index += 1
+
+        if not expects_value or _has_inline_value(token):
+            continue
+
+        if index >= len(args_list):
+            raise CommandError(f"missing value for opencode option: {name}")
+
+        opencode_args.append(args_list[index])
+        index += 1
+
+    return opencode_args, []
+
+
+def _match_passthrough_option(token: str) -> tuple[str, bool] | None:
+    if token in PASSTHROUGH_OPTIONS:
+        return token, PASSTHROUGH_OPTIONS[token]
+    if token.startswith("--"):
+        name, separator, _value = token.partition("=")
+        if separator and name in PASSTHROUGH_OPTIONS:
+            return name, PASSTHROUGH_OPTIONS[name]
+    return None
+
+
+def _has_inline_value(token: str) -> bool:
+    return token.startswith("--") and "=" in token

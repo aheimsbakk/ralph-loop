@@ -24,6 +24,7 @@
 - Stream child stdout directly to the user's terminal.
 - Keep child output unbuffered so users can follow model output in real time.
 - Help output must include short usage for empty invocation, explicit completion-promise guidance, and the standard injected prompt contract.
+- Supported `opencode` root options placed before `start`, `status`, or `help` must pass through unchanged to loop iterations, except Ralph's own `--help` and `--version`.
 - `start` must require `--agent`/`-a` and `--model`/`-m`.
 - `start` should default to `--max-iterations 20` and `--completion-promise DONE`.
 - `start` should default to `--timeout 3600` and allow `--timeout`/`-t` overrides.

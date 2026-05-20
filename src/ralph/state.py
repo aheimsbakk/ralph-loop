@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import re
 
@@ -11,6 +12,7 @@ from .models import RalphState
 FRONT_MATTER_PATTERN = re.compile(r"^---\n(.*?)\n---\n?(.*)$", re.DOTALL)
 PROMISE_PATTERN = re.compile(r"<promise>([\s\S]*?)</promise>")
 ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+ScalarValue = str | int | bool | None | list[str]
 
 
 def state_path(directory: Path, state_file: str = STATE_FILE) -> Path:
@@ -53,7 +55,7 @@ def _escape_yaml(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def _parse_scalar(value: str) -> str | int | bool | None:
+def _parse_scalar(value: str) -> ScalarValue:
     stripped = value.strip()
     if stripped == "null":
         return None
@@ -61,6 +63,14 @@ def _parse_scalar(value: str) -> str | int | bool | None:
         return True
     if stripped == "false":
         return False
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return stripped
+        if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
+            return parsed
+        return stripped
     if stripped.startswith('"') and stripped.endswith('"'):
         inner = stripped[1:-1]
         return inner.replace('\\"', '"').replace("\\\\", "\\")
@@ -80,7 +90,7 @@ def load_state(directory: Path, state_file: str = STATE_FILE) -> RalphState | No
         return None
 
     front_matter, body = match.groups()
-    values: dict[str, str | int | bool | None] = {}
+    values: dict[str, ScalarValue] = {}
 
     for line in front_matter.splitlines():
         key, separator, raw_value = line.partition(":")
@@ -101,6 +111,7 @@ def load_state(directory: Path, state_file: str = STATE_FILE) -> RalphState | No
         updated_at=_string_value(values, "updated_at"),
         agent=_string_value(values, "agent"),
         model=_string_value(values, "model"),
+        opencode_args=_string_tuple_value(values, "opencode_args"),
         pid=_int_or_none(values, "pid"),
         last_exit_code=_int_or_none(values, "last_exit_code"),
         prompt=body.lstrip("\n").rstrip("\n"),
@@ -127,6 +138,7 @@ def save_state(
         f"updated_at: {_yaml_scalar(state.updated_at)}",
         f"agent: {_yaml_scalar(state.agent)}",
         f"model: {_yaml_scalar(state.model)}",
+        f"opencode_args: {_yaml_scalar(state.opencode_args)}",
         f"pid: {_yaml_scalar(state.pid)}",
         f"last_exit_code: {_yaml_scalar(state.last_exit_code)}",
         "---",
@@ -145,28 +157,31 @@ def _yaml_scalar(value: object) -> str:
         return "true" if value else "false"
     if isinstance(value, int):
         return str(value)
+    if isinstance(value, (list, tuple)):
+        return json.dumps(list(value))
     return f'"{_escape_yaml(str(value))}"'
 
 
-def _string_value(values: dict[str, str | int | bool | None], key: str) -> str | None:
+def _string_value(values: dict[str, ScalarValue], key: str) -> str | None:
     value = values.get(key)
     return value if isinstance(value, str) else None
 
 
-def _int_value(
-    values: dict[str, str | int | bool | None], key: str, default: int
-) -> int:
+def _string_tuple_value(values: dict[str, ScalarValue], key: str) -> tuple[str, ...]:
+    value = values.get(key)
+    return tuple(value) if isinstance(value, list) else ()
+
+
+def _int_value(values: dict[str, ScalarValue], key: str, default: int) -> int:
     value = values.get(key)
     return value if isinstance(value, int) else default
 
 
-def _int_or_none(values: dict[str, str | int | bool | None], key: str) -> int | None:
+def _int_or_none(values: dict[str, ScalarValue], key: str) -> int | None:
     value = values.get(key)
     return value if isinstance(value, int) else None
 
 
-def _bool_value(
-    values: dict[str, str | int | bool | None], key: str, default: bool
-) -> bool:
+def _bool_value(values: dict[str, ScalarValue], key: str, default: bool) -> bool:
     value = values.get(key)
     return value if isinstance(value, bool) else default

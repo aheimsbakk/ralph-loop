@@ -92,14 +92,25 @@ def test_loop_supervisor_runs_iteration(
     supervisor = LoopSupervisor(tmp_path)
     result = supervisor.run_iteration(
         RalphState(
-            iteration=2, max_iterations=5, agent="vibe", model="m", prompt="Prompt"
+            iteration=2,
+            max_iterations=5,
+            agent="vibe",
+            model="m",
+            opencode_args=("--print-logs", "--session", "session-123"),
+            prompt="Prompt",
         )
     )
     captured = capsys.readouterr()
 
     assert result.exit_code == 0
     assert result.output == "done\n"
-    assert captured_command[:2] == ["opencode", "run"]
+    assert captured_command[:5] == [
+        "opencode",
+        "--print-logs",
+        "--session",
+        "session-123",
+        "run",
+    ]
     assert popen_kwargs["stdin"] is subprocess.DEVNULL
     assert popen_kwargs["stdout"] == write_fd
     assert popen_kwargs["stderr"] == write_fd

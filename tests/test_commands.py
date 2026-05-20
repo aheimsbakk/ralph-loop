@@ -57,6 +57,18 @@ def test_build_start_options_keeps_custom_state_file() -> None:
     assert options.state_file == "custom-state.md"
 
 
+def test_build_start_options_keeps_opencode_args() -> None:
+    options = build_start_options(
+        make_start_args(opencode_args=["--print-logs", "--session", "session-123"])
+    )
+
+    assert options.opencode_args == (
+        "--print-logs",
+        "--session",
+        "session-123",
+    )
+
+
 def test_start_command_completes_on_promise(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -449,6 +461,7 @@ def test_status_command_reports_running_process(
     assert "Iteration timeout: 45s" in captured.out
     assert "Sleep between iterations: 0s" in captured.out
     assert "Standard prompt injection: enabled" in captured.out
+    assert "OpenCode options: none" in captured.out
 
 
 def test_status_command_uses_custom_state_file(

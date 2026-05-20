@@ -102,6 +102,7 @@ class LoopSupervisor:
         process = subprocess.Popen(
             [
                 "opencode",
+                *state.opencode_args,
                 "run",
                 "--agent",
                 state.agent or "",

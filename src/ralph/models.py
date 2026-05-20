@@ -15,6 +15,7 @@ class StartOptions:
     model: str
     prompt: str
     state_file: str
+    opencode_args: tuple[str, ...] = ()
     max_iterations: int = DEFAULT_MAX_ITERATIONS
     completion_promise: str = DEFAULT_COMPLETION_PROMISE
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
@@ -36,6 +37,7 @@ class RalphState:
     updated_at: str | None = None
     agent: str | None = None
     model: str | None = None
+    opencode_args: tuple[str, ...] = ()
     pid: int | None = None
     last_exit_code: int | None = None
     prompt: str = ""

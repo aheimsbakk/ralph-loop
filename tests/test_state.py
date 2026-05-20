@@ -27,6 +27,7 @@ def test_save_and_load_state_round_trip(tmp_path: Path) -> None:
         updated_at="2026-05-20T00:01:00Z",
         agent="vibe",
         model="ollama/gemini4",
+        opencode_args=("--print-logs", "--session", "session-123"),
         pid=321,
         last_exit_code=0,
         prompt="Build docs",

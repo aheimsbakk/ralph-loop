@@ -57,6 +57,7 @@ def build_start_options(args: argparse.Namespace) -> StartOptions:
         model=model,
         prompt=prompt,
         state_file=_require_text(args.state_file, "--state-file"),
+        opencode_args=tuple(_opencode_args(args)),
         max_iterations=args.max_iterations,
         completion_promise=completion_promise,
         timeout_seconds=args.timeout,
@@ -93,6 +94,7 @@ def start_command(args: argparse.Namespace, directory: Path) -> int:
         updated_at=started_at,
         agent=options.agent,
         model=options.model,
+        opencode_args=options.opencode_args,
         pid=os.getpid(),
         prompt=options.prompt,
     )
@@ -204,6 +206,7 @@ def status_command(_args: object, directory: Path) -> int:
                 f"Completion promise: {state.completion_promise or 'none'}",
                 f"Agent: {state.agent or 'unknown'}",
                 f"Model: {state.model or 'unknown'}",
+                f"OpenCode options: {' '.join(state.opencode_args) if state.opencode_args else 'none'}",
                 f"PID: {state.pid or 'none'}",
                 f"Process: {'running' if process_running else 'not running'}",
                 f"Started at: {state.started_at or 'unknown'}",
@@ -280,3 +283,12 @@ def _state_file_option(args: object) -> str:
     if not isinstance(value, str) or not value.strip():
         raise CommandError("--state-file cannot be empty")
     return value.strip()
+
+
+def _opencode_args(args: object) -> list[str]:
+    value = getattr(args, "opencode_args", [])
+    if not isinstance(value, list):
+        raise CommandError("opencode options must be a list")
+    if not all(isinstance(item, str) for item in value):
+        raise CommandError("opencode options must be strings")
+    return value

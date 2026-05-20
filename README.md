@@ -24,6 +24,7 @@ uvx --from git+https://github.com/aheimsbakk/opencode-ralph ralph --help
 ### Start a loop
 
 ```bash
+ralph --print-logs --session abc123 start -a vibe -m ollama/gemini4 "Resume the API task"
 ralph start -a vibe -m ollama/gemini4 "Build the API"
 ralph start -a vibe -m ollama/gemini4 -i 5 -c DONE -t 1800 "Add tests"
 ralph start -a vibe -m ollama/gemini4 --sleep 2 "Retry with a pause between loops"
@@ -34,6 +35,8 @@ ralph start -a vibe -m ollama/gemini4 -P "Use only my raw task text"
 Press `Ctrl+C` to stop a running loop.
 Ralph injects the completion-promise instructions into each loop automatically.
 Use `-P` or `--no-standard-prompt` to disable that injected block.
+Any supported `opencode` root option placed before `start` is forwarded to each `opencode run` iteration.
+Keep `--help` and `--version` reserved for `ralph` itself.
 Run `ralph help start` to see the standard contract and template.
 Ralph only stops when the final non-empty visible output line is exactly the matching promise tag.
 Terminal control codes from streamed model output are ignored during that check.

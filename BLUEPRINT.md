@@ -15,9 +15,10 @@
 - `./tests/*.py` — pytest coverage for CLI, state, and runtime behavior.
 
 ## CLI surface
-- Entry: `ralph <command> [options]`
+- Entry: `ralph [opencode-options...] <command> [options]`
 - Commands: `start`, `status`
 - Global flags: `--help`/`-h`, `--version`/`-v`
+- Any supported `opencode` root option placed before the Ralph command is forwarded to every `opencode run` iteration.
 - No-argument behavior: print a short usage summary.
 - Help behavior: show full command help, explain the standard contract, and print the standard injected prompt template.
 - `start`: `ralph start --agent <agent> --model <model> [--max-iterations <count>] [--completion-promise <text>] [--timeout <seconds>] [--sleep <seconds>] [-s|--state-file <path>] [-P|--no-standard-prompt] <prompt>`
@@ -28,15 +29,16 @@
 
 ## State model
 - Path: default `./ralph-loop.local.md`, override with `-s`/`--state-file`
-- Front matter fields: `active`, `status`, `iteration`, `max_iterations`, `completion_promise`, `timeout_seconds`, `sleep_seconds`, `inject_standard_prompt`, `started_at`, `updated_at`, `agent`, `model`, `pid`, `last_exit_code`
+- Front matter fields: `active`, `status`, `iteration`, `max_iterations`, `completion_promise`, `timeout_seconds`, `sleep_seconds`, `inject_standard_prompt`, `started_at`, `updated_at`, `agent`, `model`, `opencode_args`, `pid`, `last_exit_code`
 - Body: saved task text without injected runtime instructions
 
 ## Runtime behavior
 - `start` validates required flags, prompt presence, numeric limits, and that no live Ralph supervisor is already active.
+- `start` splits Ralph command args from supported `opencode` root options and persists those forwarded options in state.
 - `start` and `status` use the selected state file path.
 - By default, each iteration injects the completion-promise warning block ahead of the saved task text.
 - `--no-standard-prompt` disables that injected block and sends only the saved task text.
-- Each iteration runs the `opencode` CLI with the saved prompt, agent, and model through Python subprocess management.
+- Each iteration runs the `opencode` CLI with the saved pre-command root options, prompt, agent, and model through Python subprocess management.
 - Each iteration uses a pseudo-terminal so child output stays unbuffered and visible in real time.
 - Ralph can sleep for a configured number of seconds between successful iterations.
 - Each iteration enforces a bounded timeout with Python runtime controls.

@@ -3,24 +3,24 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ralph"
-version = "2.0.0"
-description = "Installable Ralph loop wrapper for CLI commands"
+name = "ralph-loop"
+version = "3.0.0"
+description = "Installable ralph-loop wrapper for CLI commands"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-ralph = "ralph.cli:main"
+ralph-loop = "ralph_loop.cli:main"
 
 [dependency-groups]
 dev = [
-  "pytest==8.3.5",
+  "pytest==9.0.3",
   "pytest-cov==6.0.0",
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=ralph --cov-report=term-missing --cov-fail-under=80"
+addopts = "--cov=ralph_loop --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]
 
 [tool.pyright]

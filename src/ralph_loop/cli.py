@@ -16,44 +16,44 @@ from .runtime import CommandError
 
 
 SHORT_USAGE_TEXT = """Usage:
-  ralph [options] -- <command> [args...]
-  ralph --help
-  ralph --version"""
+  ralph-loop [options] -- <command> [args...]
+  ralph-loop --help
+  ralph-loop --version"""
 
-HELP_TEXT = """Run the wrapped command in a Ralph loop.
+HELP_TEXT = """Run the wrapped command in a loop.
 
 Promise:
-  Ralph only detects the promise. It does not add it to your prompt or input.
+  ralph-loop only detects the promise. It does not add it to your prompt or input.
   Tell the wrapped command to print <promise>DONE</promise> itself when the
   work is truly complete.
-  Ralph only accepts the promise when it is the final non-empty visible line.
+  ralph-loop only accepts the promise when it is the final non-empty visible line.
 
 Notes:
   -- is required before the wrapped command.
-  --timeout applies to each iteration, not the full Ralph session.
+  --timeout applies to each iteration, not the full ralph-loop session.
   --sleep waits only between successful iterations.
   --max-iterations 0 means run without an iteration limit.
-  Ralph passes stdin through to the wrapped command.
+  ralph-loop passes stdin through to the wrapped command.
   Piped input is not replayed between iterations.
 
 Examples:
-  ralph -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the
+  ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the
   auth flow. End with <promise>DONE</promise> when the work is complete."
-  ralph --max-iterations 3 --timeout 900 -- claude "Review the migration and
+  ralph-loop --max-iterations 3 --timeout 900 -- claude "Review the migration and
   end with <promise>DONE</promise> when finished."
-  echo test | ralph -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'"""
+  echo test | ralph-loop -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'"""
 
 
-class RalphArgumentParser(argparse.ArgumentParser):
+class RalphLoopArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         raise CommandError(f"error: {message}")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = RalphArgumentParser(
-        prog="ralph",
-        description="Loop a command until it finishes or Ralph stops it.",
-        usage="ralph [options] -- <command> [args...]",
+    parser = RalphLoopArgumentParser(
+        prog="ralph-loop",
+        description="Loop a command until it finishes or ralph-loop stops it.",
+        usage="ralph-loop [options] -- <command> [args...]",
         epilog=HELP_TEXT,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

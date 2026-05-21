@@ -7,8 +7,8 @@ import subprocess
 
 import pytest
 
-from ralph.models import RalphOptions
-from ralph.runtime import (
+from ralph_loop.models import RalphLoopOptions
+from ralph_loop.runtime import (
     CommandError,
     LoopSupervisor,
     ensure_command_available,
@@ -48,7 +48,7 @@ class FakeProcess:
 def test_ensure_command_available_requires_command_on_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("ralph.runtime.shutil.which", lambda _name: None)
+    monkeypatch.setattr("ralph_loop.runtime.shutil.which", lambda _name: None)
 
     with pytest.raises(CommandError, match="command not found: opencode"):
         ensure_command_available(("opencode",), Path("."))
@@ -83,15 +83,15 @@ def test_loop_supervisor_runs_iteration(
         popen_kwargs.update(kwargs)
         return fake_process
 
-    monkeypatch.setattr("ralph.runtime.subprocess.Popen", fake_popen)
-    monkeypatch.setattr("ralph.runtime.pty.openpty", lambda: (read_fd, write_fd))
+    monkeypatch.setattr("ralph_loop.runtime.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("ralph_loop.runtime.pty.openpty", lambda: (read_fd, write_fd))
     monkeypatch.setattr(
-        "ralph.runtime.select.select", lambda *args, **kwargs: ([read_fd], [], [])
+        "ralph_loop.runtime.select.select", lambda *args, **kwargs: ([read_fd], [], [])
     )
 
     supervisor = LoopSupervisor(tmp_path)
     result = supervisor.run_iteration(
-        RalphOptions(
+        RalphLoopOptions(
             wrapped_command=("opencode", "run", "--model", "gpt-5", "Prompt"),
             max_iterations=5,
         ),
@@ -111,7 +111,7 @@ def test_loop_supervisor_runs_iteration(
     assert popen_kwargs["stdin"] is None
     assert popen_kwargs["stdout"] == write_fd
     assert popen_kwargs["stderr"] == write_fd
-    assert "=== Ralph iteration 2/5 ===" in captured.out
+    assert "=== ralph-loop iteration 2/5 ===" in captured.out
     assert "done\n" in captured.out
 
 
@@ -125,18 +125,18 @@ def test_loop_supervisor_returns_timeout_code(
     os.close(write_fd)
     fake_process = FakeProcess(output="", returncode=0)
     monkeypatch.setattr(
-        "ralph.runtime.subprocess.Popen", lambda *args, **kwargs: fake_process
+        "ralph_loop.runtime.subprocess.Popen", lambda *args, **kwargs: fake_process
     )
-    monkeypatch.setattr("ralph.runtime.pty.openpty", lambda: (read_fd, write_fd))
+    monkeypatch.setattr("ralph_loop.runtime.pty.openpty", lambda: (read_fd, write_fd))
     steps = iter([0.0, 2.0, 2.0, 3.0])
-    monkeypatch.setattr("ralph.runtime.time.monotonic", lambda: next(steps))
+    monkeypatch.setattr("ralph_loop.runtime.time.monotonic", lambda: next(steps))
     monkeypatch.setattr(
-        "ralph.runtime.select.select", lambda *args, **kwargs: ([read_fd], [], [])
+        "ralph_loop.runtime.select.select", lambda *args, **kwargs: ([read_fd], [], [])
     )
 
     supervisor = LoopSupervisor(tmp_path)
     result = supervisor.run_iteration(
-        RalphOptions(
+        RalphLoopOptions(
             wrapped_command=("opencode", "run", "Prompt"),
             timeout_seconds=1,
         ),

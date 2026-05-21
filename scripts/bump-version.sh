@@ -43,7 +43,7 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
 
 kind = sys.argv[1]
 pyproject = Path("/work/pyproject.toml")
-constants = Path("/work/src/ralph/constants.py")
+constants = Path("/work/src/ralph_loop/constants.py")
 lockfile = Path("/work/uv.lock")
 
 match = re.search(r'^version = "(\d+\.\d+\.\d+)"$', pyproject.read_text(encoding="utf-8"), re.MULTILINE)
@@ -55,7 +55,7 @@ new = bump(current, kind)
 
 replace_in_file(pyproject, r'^version = "\d+\.\d+\.\d+"$', f'version = "{new}"')
 replace_in_file(constants, r'^VERSION = "\d+\.\d+\.\d+"$', f'VERSION = "{new}"')
-replace_in_file(lockfile, r'^(name = "ralph"\nversion = )"\d+\.\d+\.\d+"$', rf'\1"{new}"')
+replace_in_file(lockfile, r'^(name = "ralph-loop"\nversion = )"\d+\.\d+\.\d+"$', rf'\1"{new}"')
 
 print(new)
 PY

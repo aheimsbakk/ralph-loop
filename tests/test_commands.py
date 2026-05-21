@@ -6,9 +6,9 @@ from typing import Any, cast
 
 import pytest
 
-from ralph.commands import build_options, run_command
-from ralph.models import IterationResult, RalphOptions
-from ralph.runtime import CommandError, LoopInterrupted
+from ralph_loop.commands import build_options, run_command
+from ralph_loop.models import IterationResult, RalphLoopOptions
+from ralph_loop.runtime import CommandError, LoopInterrupted
 
 
 def make_args(**overrides: object) -> argparse.Namespace:
@@ -22,7 +22,7 @@ def make_args(**overrides: object) -> argparse.Namespace:
     return argparse.Namespace(**values)
 
 
-def make_options(**overrides: object) -> RalphOptions:
+def make_options(**overrides: object) -> RalphLoopOptions:
     values: dict[str, Any] = {
         "wrapped_command": ("opencode", "run", "Prompt"),
         "max_iterations": 20,
@@ -31,7 +31,7 @@ def make_options(**overrides: object) -> RalphOptions:
         "sleep_seconds": 0,
     }
     values.update(overrides)
-    return RalphOptions(**cast(dict[str, Any], values))
+    return RalphLoopOptions(**cast(dict[str, Any], values))
 
 
 def test_build_options_validates_required_fields() -> None:
@@ -95,19 +95,21 @@ def test_run_command_completes_on_promise(
             self.installed = False
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             return IterationResult(0, "iteration 1\n<promise>COMPLETE</promise>\n")
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
     exit_code = run_command(make_options(), tmp_path)
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "Ralph loop started." in captured.out
-    assert "Ralph loop completed at iteration 1." in captured.out
+    assert "ralph-loop started." in captured.out
+    assert "ralph-loop completed at iteration 1." in captured.out
 
 
 def test_run_command_ignores_promise_mentioned_before_final_line(
@@ -127,7 +129,7 @@ def test_run_command_ignores_promise_mentioned_before_final_line(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             self.calls += 1
             if self.calls == 1:
@@ -137,15 +139,19 @@ def test_run_command_ignores_promise_mentioned_before_final_line(
                 )
             return IterationResult(0, "<promise>COMPLETE</promise>\n")
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
     supervisor = FakeSupervisor(tmp_path)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", lambda _directory: supervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.LoopSupervisor", lambda _directory: supervisor
+    )
 
     exit_code = run_command(make_options(max_iterations=2), tmp_path)
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "Ralph loop completed at iteration 2." in captured.out
+    assert "ralph-loop completed at iteration 2." in captured.out
 
 
 def test_run_command_stops_at_max_iterations(
@@ -165,22 +171,26 @@ def test_run_command_stops_at_max_iterations(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, iteration: int
+            self, _options: RalphLoopOptions, iteration: int
         ) -> IterationResult:
             self.calls += 1
             self.iterations.append(iteration)
             return IterationResult(0, f"iteration {self.calls}\n")
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
     supervisor = FakeSupervisor(tmp_path)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", lambda _directory: supervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.LoopSupervisor", lambda _directory: supervisor
+    )
 
     exit_code = run_command(make_options(max_iterations=2), tmp_path)
     captured = capsys.readouterr()
 
     assert exit_code == 0
     assert supervisor.iterations == [1, 2]
-    assert "Ralph loop stopped after 2 iterations." in captured.out
+    assert "ralph-loop stopped after 2 iterations." in captured.out
 
 
 def test_run_command_sleeps_between_iterations(
@@ -198,17 +208,21 @@ def test_run_command_sleeps_between_iterations(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             self.calls += 1
             return IterationResult(0, f"iteration {self.calls}\n")
 
     sleeps: list[int] = []
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    supervisor = FakeSupervisor(tmp_path)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", lambda _directory: supervisor)
     monkeypatch.setattr(
-        "ralph.commands.time.sleep", lambda seconds: sleeps.append(seconds)
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    supervisor = FakeSupervisor(tmp_path)
+    monkeypatch.setattr(
+        "ralph_loop.commands.LoopSupervisor", lambda _directory: supervisor
+    )
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.sleep", lambda seconds: sleeps.append(seconds)
     )
 
     exit_code = run_command(make_options(max_iterations=2, sleep_seconds=3), tmp_path)
@@ -232,15 +246,17 @@ def test_run_command_does_not_sleep_after_promise(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             return IterationResult(0, "<promise>COMPLETE</promise>\n")
 
     sleeps: list[int] = []
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", FakeSupervisor)
     monkeypatch.setattr(
-        "ralph.commands.time.sleep", lambda seconds: sleeps.append(seconds)
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.sleep", lambda seconds: sleeps.append(seconds)
     )
 
     exit_code = run_command(make_options(sleep_seconds=3), tmp_path)
@@ -265,12 +281,14 @@ def test_run_command_reports_iteration_failure(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             return IterationResult(23, "forced failure")
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
     exit_code = run_command(make_options(), tmp_path)
     captured = capsys.readouterr()
@@ -295,12 +313,14 @@ def test_run_command_treats_sigint_exit_as_cancelled(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             return IterationResult(130, "hello\n")
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
     exit_code = run_command(make_options(), tmp_path)
     captured = capsys.readouterr()
@@ -323,12 +343,14 @@ def test_run_command_marks_cancelled_on_signal(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             raise LoopInterrupted(15)
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
     exit_code = run_command(make_options(), tmp_path)
 
@@ -351,12 +373,14 @@ def test_run_command_reports_timeout(
             return None
 
         def run_iteration(
-            self, _options: RalphOptions, _iteration: int
+            self, _options: RalphLoopOptions, _iteration: int
         ) -> IterationResult:
             return IterationResult(124, "slow\n")
 
-    monkeypatch.setattr("ralph.commands.ensure_command_available", lambda *_args: None)
-    monkeypatch.setattr("ralph.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
     exit_code = run_command(make_options(timeout_seconds=12), tmp_path)
     captured = capsys.readouterr()

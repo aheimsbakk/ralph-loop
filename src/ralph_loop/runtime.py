@@ -15,7 +15,7 @@ from types import FrameType
 from typing import Any, cast
 
 from .constants import TERMINATION_GRACE_SECONDS
-from .models import IterationResult, RalphOptions
+from .models import IterationResult, RalphLoopOptions
 
 
 class CommandError(Exception):
@@ -101,9 +101,11 @@ class LoopSupervisor:
             signal.signal(signum, cast(Any, handler))
         self._previous_handlers.clear()
 
-    def run_iteration(self, options: RalphOptions, iteration: int) -> IterationResult:
+    def run_iteration(
+        self, options: RalphLoopOptions, iteration: int
+    ) -> IterationResult:
         suffix = f"/{options.max_iterations}" if options.max_iterations else ""
-        print(f"=== Ralph iteration {iteration}{suffix} ===")
+        print(f"=== ralph-loop iteration {iteration}{suffix} ===")
 
         master_fd, slave_fd = pty.openpty()
         process = subprocess.Popen(

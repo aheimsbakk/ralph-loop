@@ -6,7 +6,7 @@ import shlex
 import sys
 import time
 
-from .models import RalphOptions
+from .models import RalphLoopOptions
 from .runtime import (
     CommandError,
     LoopInterrupted,
@@ -17,7 +17,9 @@ from .runtime import (
 )
 
 
-def build_options(args: argparse.Namespace, wrapped_command: list[str]) -> RalphOptions:
+def build_options(
+    args: argparse.Namespace, wrapped_command: list[str]
+) -> RalphLoopOptions:
     completion_promise = _require_text(args.completion_promise, "--completion-promise")
     if args.max_iterations < 0:
         raise CommandError("--max-iterations must be a non-negative integer")
@@ -27,7 +29,7 @@ def build_options(args: argparse.Namespace, wrapped_command: list[str]) -> Ralph
         raise CommandError("--sleep must be a non-negative integer in seconds")
     command = _wrapped_command(wrapped_command)
 
-    return RalphOptions(
+    return RalphLoopOptions(
         wrapped_command=command,
         max_iterations=args.max_iterations,
         completion_promise=completion_promise,
@@ -36,7 +38,7 @@ def build_options(args: argparse.Namespace, wrapped_command: list[str]) -> Ralph
     )
 
 
-def run_command(options: RalphOptions, directory: Path) -> int:
+def run_command(options: RalphLoopOptions, directory: Path) -> int:
     ensure_command_available(options.wrapped_command, directory)
     _print_start_banner(options)
 
@@ -50,24 +52,24 @@ def run_command(options: RalphOptions, directory: Path) -> int:
             if result.exit_code != 0:
                 if result.exit_code == 124:
                     print(
-                        f"Ralph loop stopped: iteration timed out after {options.timeout_seconds}s.",
+                        f"ralph-loop stopped: iteration timed out after {options.timeout_seconds}s.",
                         file=sys.stderr,
                     )
                 elif result.exit_code == 130:
                     return 130
                 else:
                     print(
-                        f"Ralph loop stopped: command exited with code {result.exit_code}.",
+                        f"ralph-loop stopped: command exited with code {result.exit_code}.",
                         file=sys.stderr,
                     )
                 return result.exit_code
 
             if promise_detected(result.output, options.completion_promise):
-                print(f"Ralph loop completed at iteration {iteration}.")
+                print(f"ralph-loop completed at iteration {iteration}.")
                 return 0
 
             if options.max_iterations > 0 and iteration >= options.max_iterations:
-                print(f"Ralph loop stopped after {options.max_iterations} iterations.")
+                print(f"ralph-loop stopped after {options.max_iterations} iterations.")
                 return 0
 
             if options.sleep_seconds > 0:
@@ -90,8 +92,8 @@ def _iteration_limit_label(max_iterations: int) -> str:
     return "unlimited" if max_iterations == 0 else str(max_iterations)
 
 
-def _print_start_banner(options: RalphOptions) -> None:
-    print("Ralph loop started.")
+def _print_start_banner(options: RalphLoopOptions) -> None:
+    print("ralph-loop started.")
     print()
     print(f"Command: {shlex.join(options.wrapped_command)}")
     print(f"Iteration limit: {_iteration_limit_label(options.max_iterations)}")

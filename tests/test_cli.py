@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from ralph import cli
-from ralph.constants import (
+from ralph_loop import cli
+from ralph_loop.constants import (
     DEFAULT_COMPLETION_PROMISE,
     DEFAULT_MAX_ITERATIONS,
     DEFAULT_TIMEOUT_SECONDS,
 )
-from ralph.models import RalphOptions
+from ralph_loop.models import RalphLoopOptions
 
 
 def test_main_without_args_prints_help(
@@ -23,7 +23,7 @@ def test_main_without_args_prints_help(
 
     assert exit_code == 0
     assert "Usage:" in captured.out
-    assert "ralph [options] -- <command> [args...]" in captured.out
+    assert "ralph-loop [options] -- <command> [args...]" in captured.out
     assert "<promise>DONE</promise>" not in captured.out
 
 
@@ -43,11 +43,11 @@ def test_help_flag_includes_promise_guidance_and_examples(
     captured = capsys.readouterr()
 
     assert error.value.code == 0
-    assert "usage: ralph [options] -- <command> [args...]" in captured.out
-    assert "Ralph only detects the promise." in captured.out
+    assert "usage: ralph-loop [options] -- <command> [args...]" in captured.out
+    assert "ralph-loop only detects the promise." in captured.out
     assert "--timeout applies to each iteration" in captured.out
     assert "--max-iterations 0 means run without an iteration limit." in captured.out
-    assert "ralph -c DONE -- opencode run" in captured.out
+    assert "ralph-loop -c DONE -- opencode run" in captured.out
 
 
 def test_parser_error_returns_one(
@@ -88,7 +88,7 @@ def test_run_command_dispatches(
 ) -> None:
     called: dict[str, object] = {}
 
-    def fake_run(options: RalphOptions, directory: Path) -> int:
+    def fake_run(options: RalphLoopOptions, directory: Path) -> int:
         called["wrapped_command"] = options.wrapped_command
         called["completion_promise"] = options.completion_promise
         called["directory"] = directory

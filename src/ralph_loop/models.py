@@ -10,7 +10,7 @@ from .constants import (
 
 
 @dataclass(slots=True)
-class RalphOptions:
+class RalphLoopOptions:
     wrapped_command: tuple[str, ...]
     max_iterations: int = DEFAULT_MAX_ITERATIONS
     completion_promise: str = DEFAULT_COMPLETION_PROMISE

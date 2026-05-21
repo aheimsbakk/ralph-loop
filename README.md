@@ -1,8 +1,8 @@
-# Ralph CLI
+# ralph-loop CLI
 
 ## What it is
 
-`ralph` is an installable Python command that runs another CLI command in a loop.
+`ralph-loop` is an installable Python command that runs another CLI command in a loop.
 
 ## What it does
 
@@ -13,24 +13,22 @@
 
 ## Install
 
-To install `ralph` directly from GitHub:
+To install `ralph-loop` directly from GitHub:
 
 ```bash
-uv tool install git+https://github.com/aheimsbakk/opencode-ralph
+uv tool install git+https://github.com/aheimsbakk/ralph-loop
 ```
 
-To run `ralph` directly from GitHub without installing it:
+To run `ralph-loop` directly from GitHub without installing it:
 
 ```bash
-uvx --from git+https://github.com/aheimsbakk/opencode-ralph ralph --help
+uvx --from git+https://github.com/aheimsbakk/ralph-loop ralph-loop --help
 ```
-
-## Usage
 
 ## Quick start
 
 ```bash
-ralph -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
+ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
 ```
 
 `--` is required. Everything after it is passed to the wrapped command unchanged.
@@ -38,21 +36,21 @@ ralph -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth 
 ## Usage
 
 ```bash
-ralph [options] -- <command> [args...]
+ralph-loop [options] -- <command> [args...]
 ```
 
 Examples:
 
 ```bash
-ralph -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
-ralph --max-iterations 3 --timeout 900 -- claude "Review the migration and end with <promise>DONE</promise> when finished."
-ralph -i 5 -s 2 -- copilot-cli "Retry the code review until it ends with <promise>DONE</promise>."
-echo test | ralph -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'
+ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
+ralph-loop --max-iterations 3 --timeout 900 -- claude "Review the migration and end with <promise>DONE</promise> when finished."
+ralph-loop -i 5 -s 2 -- copilot-cli "Retry the code review until it ends with <promise>DONE</promise>."
+echo test | ralph-loop -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'
 ```
 
 ## Promise contract
 
-Ralph only detects the promise. It does not add extra text to your prompt or stdin.
+ralph-loop only detects the promise. It does not add extra text to your prompt or stdin.
 
 Tell the wrapped command to print a matching promise tag itself:
 
@@ -60,12 +58,12 @@ Tell the wrapped command to print a matching promise tag itself:
 <promise>DONE</promise>
 ```
 
-Ralph only stops on a promise when all of these are true:
+ralph-loop only stops on a promise when all of these are true:
 
 - The tag matches `-c` or `--completion-promise`.
 - The tag is the final non-empty visible output line.
 - Terminal control codes do not change that result.
-- The statement is true, because Ralph has no way to verify it for you.
+- The statement is true, because ralph-loop has no way to verify it for you.
 
 Practical pattern:
 
@@ -77,30 +75,30 @@ Do not print that tag before the work is complete.
 ## Options
 
 - `-i`, `--max-iterations`: Stop after this many successful iterations. Use `0` for unlimited iterations. Default: `20`.
-- `-c`, `--completion-promise`: Promise text Ralph waits for inside `<promise>...</promise>`. Default: `DONE`.
+- `-c`, `--completion-promise`: Promise text ralph-loop waits for inside `<promise>...</promise>`. Default: `DONE`.
 - `-t`, `--timeout`: Per-iteration timeout in seconds. Default: `3600`.
 - `-s`, `--sleep`: Seconds to wait between successful iterations. Default: `0`.
 - `-h`, `--help`: Show help.
-- `-v`, `--version`: Show the Ralph version.
+- `-v`, `--version`: Show the ralph-loop version.
 
 ## Behavior
 
-Ralph stops when one of these happens:
+ralph-loop stops when one of these happens:
 
 - The child prints the matching promise tag on its final non-empty line.
 - The child exits with a non-zero code.
-- The iteration times out. Ralph returns exit code `124`.
-- The iteration limit is reached. Ralph returns exit code `0`.
-- You press `Ctrl+C`. Ralph returns exit code `130`.
+- The iteration times out. ralph-loop returns exit code `124`.
+- The iteration limit is reached. ralph-loop returns exit code `0`.
+- You press `Ctrl+C`. ralph-loop returns exit code `130`.
 
-Ralph streams stdout and stderr from the child in real time through a pseudo-terminal.
+ralph-loop streams stdout and stderr from the child in real time through a pseudo-terminal.
 
-Ralph passes stdin through to the wrapped command. If you pipe data into Ralph, the wrapped command can read it. Ralph does not buffer and replay that stdin for later iterations.
+ralph-loop passes stdin through to the wrapped command. If you pipe data into ralph-loop, the wrapped command can read it. ralph-loop does not buffer and replay that stdin for later iterations.
 
 That means this works for the first iteration:
 
 ```bash
-echo test | ralph -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'
+echo test | ralph-loop -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'
 ```
 
 If the command needs the same stdin on later iterations, you must make that data available another way, such as a file, an environment variable, or command arguments.

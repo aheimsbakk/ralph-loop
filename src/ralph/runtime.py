@@ -5,6 +5,7 @@ import errno
 import os
 from pathlib import Path
 import pty
+import re
 import select
 import shutil
 import signal
@@ -14,7 +15,7 @@ from types import FrameType
 from typing import Any, cast
 
 from .constants import TERMINATION_GRACE_SECONDS
-from .models import IterationResult, RalphState
+from .models import IterationResult, RalphOptions
 
 
 class CommandError(Exception):
@@ -30,9 +31,24 @@ class LoopInterrupted(Exception):
         self.signum = signum
 
 
-def ensure_runtime_dependencies() -> None:
-    if shutil.which("opencode") is None:
-        raise CommandError("opencode is required")
+PROMISE_PATTERN = re.compile(r"<promise>([\s\S]*?)</promise>")
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def ensure_command_available(command: tuple[str, ...], directory: Path) -> None:
+    executable = command[0]
+    if "/" in executable:
+        path = Path(executable)
+        if not path.is_absolute():
+            path = directory / path
+        if not path.exists():
+            raise CommandError(f"command not found: {executable}")
+        if not os.access(path, os.X_OK):
+            raise CommandError(f"command is not executable: {executable}")
+        return
+
+    if shutil.which(executable) is None:
+        raise CommandError(f"command not found: {executable}")
 
 
 def signal_exit_code(signum: int) -> int:
@@ -43,38 +59,29 @@ def signal_exit_code(signum: int) -> int:
     return 1
 
 
-def is_ralph_process(pid: int | None) -> bool:
-    if pid is None or pid <= 0:
+def normalize_whitespace(value: str) -> str:
+    return " ".join(value.split())
+
+
+def strip_terminal_control_sequences(value: str) -> str:
+    without_ansi = ANSI_ESCAPE_PATTERN.sub("", value)
+    return without_ansi.replace("\r", "")
+
+
+def promise_detected(text: str, expected: str | None) -> bool:
+    if not expected:
         return False
 
-    try:
-        os.kill(pid, 0)
-    except OSError:
+    cleaned_text = strip_terminal_control_sequences(text)
+    lines = [line.strip() for line in cleaned_text.splitlines() if line.strip()]
+    if not lines:
         return False
 
-    args = _read_process_args(pid)
-    if not args or "start" not in args:
+    match = PROMISE_PATTERN.fullmatch(lines[-1])
+    if not match:
         return False
 
-    basenames = {Path(arg).name for arg in args if arg}
-    if "ralph" in basenames or "ralph.sh" in basenames:
-        return True
-
-    for index, arg in enumerate(args[:-1]):
-        if arg == "-m" and args[index + 1] == "ralph":
-            return True
-
-    return any("ralph" in arg for arg in args)
-
-
-def _read_process_args(pid: int) -> list[str]:
-    cmdline_path = Path("/proc") / str(pid) / "cmdline"
-    try:
-        raw = cmdline_path.read_bytes()
-    except OSError:
-        return []
-
-    return [part for part in raw.decode("utf-8", errors="ignore").split("\x00") if part]
+    return normalize_whitespace(match.group(1)) == normalize_whitespace(expected)
 
 
 class LoopSupervisor:
@@ -94,24 +101,15 @@ class LoopSupervisor:
             signal.signal(signum, cast(Any, handler))
         self._previous_handlers.clear()
 
-    def run_iteration(self, state: RalphState) -> IterationResult:
-        suffix = f"/{state.max_iterations}" if state.max_iterations else ""
-        print(f"=== Ralph iteration {state.iteration}{suffix} ===")
+    def run_iteration(self, options: RalphOptions, iteration: int) -> IterationResult:
+        suffix = f"/{options.max_iterations}" if options.max_iterations else ""
+        print(f"=== Ralph iteration {iteration}{suffix} ===")
 
         master_fd, slave_fd = pty.openpty()
         process = subprocess.Popen(
-            [
-                "opencode",
-                *state.opencode_args,
-                "run",
-                "--agent",
-                state.agent or "",
-                "--model",
-                state.model or "",
-                state.prompt,
-            ],
+            [*options.wrapped_command],
             cwd=self.directory,
-            stdin=subprocess.DEVNULL,
+            stdin=None,
             stdout=slave_fd,
             stderr=slave_fd,
         )
@@ -122,7 +120,7 @@ class LoopSupervisor:
         output_parts: list[str] = []
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         stdout_fd = master_fd
-        deadline = time.monotonic() + state.timeout_seconds
+        deadline = time.monotonic() + options.timeout_seconds
 
         try:
             while True:

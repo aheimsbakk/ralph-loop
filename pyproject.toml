@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ralph"
-version = "1.1.0"
-description = "Installable Ralph loop command for OpenCode"
+version = "2.0.0"
+description = "Installable Ralph loop wrapper for CLI commands"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []

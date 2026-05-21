@@ -22,8 +22,7 @@ def test_main_without_args_prints_help(
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "Usage:" in captured.out
-    assert "ralph-loop [options] -- <command> [args...]" in captured.out
+    assert captured.out == "usage: ralph-loop [options] -- <command> [args...]\n"
     assert "<promise>DONE</promise>" not in captured.out
 
 
@@ -48,6 +47,16 @@ def test_help_flag_includes_promise_guidance_and_examples(
     assert "--timeout applies to each iteration" in captured.out
     assert "--max-iterations 0 means run without an iteration limit." in captured.out
     assert "ralph-loop -c DONE -- opencode run" in captured.out
+    assert 'printf "<promise>DONE</promise>\\\\n"' in captured.out
+    assert "sh -lc\n    'cat; printf" in captured.out
+    assert (
+        '"Fix the auth flow. End with <promise>DONE</promise> when the work is complete."'
+        in captured.out
+    )
+    assert (
+        '"Review the migration and end with <promise>DONE</promise> when finished."'
+        in captured.out
+    )
 
 
 def test_parser_error_returns_one(

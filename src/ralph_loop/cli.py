@@ -15,33 +15,38 @@ from .constants import (
 from .runtime import CommandError
 
 
-SHORT_USAGE_TEXT = """Usage:
-  ralph-loop [options] -- <command> [args...]
-  ralph-loop --help
-  ralph-loop --version"""
+HELP_TEXT = (
+    "Run the wrapped command in a loop.\n\n"
+    "Promise:\n"
+    "  ralph-loop only detects the promise. It does not add it to your prompt or input.\n"
+    "  Tell the wrapped command to print <promise>DONE</promise> itself when the\n"
+    "  work is truly complete.\n"
+    "  ralph-loop only accepts the promise when it is the final non-empty visible line.\n\n"
+    "Notes:\n"
+    "  -- is required before the wrapped command.\n"
+    "  --timeout applies to each iteration, not the full ralph-loop session.\n"
+    "  --sleep waits only between successful iterations.\n"
+    "  --max-iterations 0 means run without an iteration limit.\n"
+    "  ralph-loop passes stdin through to the wrapped command.\n"
+    "  Piped input is not replayed between iterations.\n\n"
+    "Examples:\n"
+    "  ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4\n"
+    '    "Fix the auth flow. End with <promise>DONE</promise> when the work is complete."\n'
+    "  ralph-loop --max-iterations 3 --timeout 900 -- claude\n"
+    '    "Review the migration and end with <promise>DONE</promise> when finished."\n'
+    "  echo test | ralph-loop -i 1 -- sh -lc\n"
+    "    'cat; printf \"<promise>DONE</promise>\\\\n\"'"
+)
 
-HELP_TEXT = """Run the wrapped command in a loop.
 
-Promise:
-  ralph-loop only detects the promise. It does not add it to your prompt or input.
-  Tell the wrapped command to print <promise>DONE</promise> itself when the
-  work is truly complete.
-  ralph-loop only accepts the promise when it is the final non-empty visible line.
+class RalphLoopHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        return "\n".join(
+            f"{indent}{line}" if line else "" for line in text.splitlines()
+        )
 
-Notes:
-  -- is required before the wrapped command.
-  --timeout applies to each iteration, not the full ralph-loop session.
-  --sleep waits only between successful iterations.
-  --max-iterations 0 means run without an iteration limit.
-  ralph-loop passes stdin through to the wrapped command.
-  Piped input is not replayed between iterations.
-
-Examples:
-  ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the
-  auth flow. End with <promise>DONE</promise> when the work is complete."
-  ralph-loop --max-iterations 3 --timeout 900 -- claude "Review the migration and
-  end with <promise>DONE</promise> when finished."
-  echo test | ralph-loop -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'"""
+    def _split_lines(self, text: str, width: int) -> list[str]:
+        return text.splitlines()
 
 
 class RalphLoopArgumentParser(argparse.ArgumentParser):
@@ -55,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Loop a command until it finishes or ralph-loop stops it.",
         usage="ralph-loop [options] -- <command> [args...]",
         epilog=HELP_TEXT,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=RalphLoopHelpFormatter,
     )
     parser.add_argument(
         "-v", "--version", action="version", version=f"%(prog)s {VERSION}"
@@ -76,7 +81,7 @@ def main(argv: list[str] | None = None, directory: Path | None = None) -> int:
     args_list = list(sys.argv[1:] if argv is None else argv)
 
     if not args_list:
-        print(SHORT_USAGE_TEXT)
+        sys.stdout.write(parser.format_usage())
         return 0
 
     try:

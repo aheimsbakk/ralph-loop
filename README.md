@@ -28,7 +28,7 @@ uvx --from git+https://github.com/aheimsbakk/ralph-loop ralph-loop --help
 ## Quick start
 
 ```bash
-ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
+ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemma4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
 ```
 
 `--` is required. Everything after it is passed to the wrapped command unchanged.
@@ -42,7 +42,7 @@ ralph-loop [options] -- <command> [args...]
 Examples:
 
 ```bash
-ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
+ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemma4 "Fix the auth flow. Print <promise>DONE</promise> only when the work is complete."
 ralph-loop --max-iterations 3 --timeout 900 -- claude "Review the migration and end with <promise>DONE</promise> when finished."
 ralph-loop -i 5 -s 2 -- copilot-cli "Retry the code review until it ends with <promise>DONE</promise>."
 echo test | ralph-loop -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'

@@ -30,7 +30,7 @@ HELP_TEXT = (
     "  ralph-loop passes stdin through to the wrapped command.\n"
     "  Piped input is not replayed between iterations.\n\n"
     "Examples:\n"
-    "  ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemini4\n"
+    "  ralph-loop -c DONE -- opencode run --agent vibe --model ollama/gemma4\n"
     '    "Fix the auth flow. End with <promise>DONE</promise> when the work is complete."\n'
     "  ralph-loop --max-iterations 3 --timeout 900 -- claude\n"
     '    "Review the migration and end with <promise>DONE</promise> when finished."\n'

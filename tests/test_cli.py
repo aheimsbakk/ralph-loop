@@ -47,6 +47,8 @@ def test_help_flag_includes_promise_guidance_and_examples(
     assert "--timeout applies to each iteration" in captured.out
     assert "--max-iterations 0 means run without an iteration limit." in captured.out
     assert "ralph-loop -c DONE -- opencode run" in captured.out
+    assert "--model ollama/gemma4" in captured.out
+    assert "ollama/gemini4" not in captured.out
     assert 'printf "<promise>DONE</promise>\\\\n"' in captured.out
     assert "sh -lc\n    'cat; printf" in captured.out
     assert (

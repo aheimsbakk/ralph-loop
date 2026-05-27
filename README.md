@@ -2,6 +2,8 @@
 
 ## What it is
 
+Based on the [Ralph Wiggum technique](https://ghuntley.com/ralph/) by Geoffrey Huntley.
+
 `ralph-loop` is an installable Python command that runs another CLI command in a loop.
 
 ## What it does

@@ -50,7 +50,10 @@ class ProcessRunner:
         return process, master_fd, slave_fd
 
     def stop(
-        self, output_parts: list[str], decoder: codecs.IncrementalDecoder | None
+        self,
+        output_parts: list[str],
+        decoder: codecs.IncrementalDecoder | None,
+        output_reader: OutputReader | None = None,
     ) -> str:
         process = self.process
         if process is None:
@@ -69,7 +72,9 @@ class ProcessRunner:
                     pass
             process.terminate()
 
-        output = self._wait_for_termination(process, stdout_fd, output_parts, decoder)
+        output = self._wait_for_termination(
+            process, stdout_fd, output_parts, decoder, output_reader
+        )
         return output
 
     def _wait_for_termination(
@@ -78,8 +83,10 @@ class ProcessRunner:
         stdout_fd: int | None,
         output_parts: list[str],
         decoder: codecs.IncrementalDecoder | None,
+        output_reader: OutputReader | None = None,
     ) -> str:
-        output_reader = OutputReader(output_parts, decoder)
+        if output_reader is None:
+            output_reader = OutputReader(output_parts, decoder)
         deadline = time.monotonic() + TERMINATION_GRACE_SECONDS
 
         while True:
@@ -126,6 +133,7 @@ class OutputReader:
     ) -> None:
         self._output_parts = output_parts
         self._decoder = decoder
+        self.current_size: int = sum(len(part.encode("utf-8")) for part in output_parts)
 
     def read(self, fd: int, process: subprocess.Popen[bytes] | None = None) -> bool:
         try:
@@ -146,6 +154,7 @@ class OutputReader:
         if text:
             print(text, end="", flush=True)
             self._output_parts.append(text)
+            self.current_size += len(text.encode("utf-8"))
         return True
 
     def finalize(self) -> str:
@@ -154,4 +163,25 @@ class OutputReader:
             if tail:
                 print(tail, end="", flush=True)
                 self._output_parts.append(tail)
+                self.current_size += len(tail.encode("utf-8"))
         return "".join(self._output_parts)
+
+    def remove_prefix(self, num_parts: int) -> None:
+        """Remove the first `num_parts` from the buffer and update current_size."""
+        for i in range(num_parts):
+            if i < len(self._output_parts):
+                self.current_size -= len(self._output_parts[i].encode("utf-8"))
+        del self._output_parts[:num_parts]
+
+    def truncate(self, max_bytes: int) -> None:
+        """Remove parts from the front until total size is within max_bytes."""
+        if self.current_size <= max_bytes:
+            return
+        total_bytes = self.current_size
+        start = 0
+        while start < len(self._output_parts):
+            if total_bytes <= max_bytes:
+                break
+            total_bytes -= len(self._output_parts[start].encode("utf-8"))
+            start += 1
+        self.remove_prefix(start)

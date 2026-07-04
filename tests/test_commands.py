@@ -8,7 +8,8 @@ import pytest
 
 from ralph_loop.commands import build_options, run_command
 from ralph_loop.models import IterationResult, RalphLoopOptions
-from ralph_loop.runtime import CommandError, LoopInterrupted
+from ralph_loop.runtime import LoopInterrupted
+from ralph_loop.utils import CommandError
 
 
 def make_args(**overrides: object) -> argparse.Namespace:

@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2026-07-04
+
+- **why:** Split runtime.py into focused modules and optimize output buffer size tracking
+- **model:** llama-cpp/qwen-3.6-think-coding
+- **tags:** refactoring, performance, modularization
+
+### Changed
+
+- Moved utility functions (`CommandError`, `ensure_command_available`, `signal_exit_code`, `normalize_whitespace`, `strip_terminal_control_sequences`, `promise_detected`) from `src/ralph_loop/runtime.py` to new `src/ralph_loop/utils.py` to comply with Rule 17 (Modular File Structure, under 200 lines).
+- `OutputReader` now maintains a running `current_size` attribute, eliminating O(N) byte-counting loops during truncation. Added `truncate(max_bytes)` and `remove_prefix(num_parts)` methods.
+- `LoopSupervisor` passes a shared `OutputReader` instance through `ProcessRunner.stop()` instead of reconstructing it per iteration.
+
+### Fixed
+
+- Output buffer truncation now uses the persistent `OutputReader` instance, ensuring consistent size tracking across iterations.
+
 ## [3.1.1] - 2026-07-04
 
 - **why:** Fix loss of TTY for wrapped commands when piping input

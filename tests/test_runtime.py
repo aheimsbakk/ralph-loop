@@ -11,10 +11,9 @@ import pytest
 
 from ralph_loop.models import RalphLoopOptions
 from ralph_loop.constants import MAX_OUTPUT_BYTES
-from ralph_loop.runtime import (
+from ralph_loop.runtime import LoopInterrupted, LoopSupervisor
+from ralph_loop.utils import (
     CommandError,
-    LoopInterrupted,
-    LoopSupervisor,
     ensure_command_available,
     normalize_whitespace,
     promise_detected,
@@ -63,7 +62,7 @@ class FakeProcess:
 def test_ensure_command_available_requires_command_on_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("ralph_loop.runtime.shutil.which", lambda _name: None)  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    monkeypatch.setattr("ralph_loop.utils.shutil.which", lambda _name: None)  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
 
     with pytest.raises(CommandError, match="command not found: opencode"):
         ensure_command_available(("opencode",), Path("."))
@@ -269,8 +268,8 @@ def test_output_buffer_truncated_at_max_bytes() -> None:
     parts.append("b" * part_size)
     parts.append("c" * part_size)
 
-    supervisor = LoopSupervisor(Path("."))
-    supervisor._truncate_output_parts(parts)
+    output_reader = OutputReader(parts, None)
+    output_reader.truncate(MAX_OUTPUT_BYTES)
 
     total_bytes = sum(len(part.encode("utf-8")) for part in parts)
     assert total_bytes <= MAX_OUTPUT_BYTES
@@ -280,8 +279,8 @@ def test_output_buffer_truncated_at_max_bytes() -> None:
 def test_output_buffer_not_truncated_when_under_limit() -> None:
     parts = ["x" * 100, "y" * 100]
 
-    supervisor = LoopSupervisor(Path("."))
-    supervisor._truncate_output_parts(parts)
+    output_reader = OutputReader(parts, None)
+    output_reader.truncate(MAX_OUTPUT_BYTES)
 
     assert parts == ["x" * 100, "y" * 100]
 
@@ -291,8 +290,8 @@ def test_promise_detected_after_truncation_still_works() -> None:
     promise_line = "<promise>DONE</promise>\n"
     parts = [small, promise_line]
 
-    supervisor = LoopSupervisor(Path("."))
-    supervisor._truncate_output_parts(parts)
+    output_reader = OutputReader(parts, None)
+    output_reader.truncate(MAX_OUTPUT_BYTES)
 
     combined = "".join(parts)
     assert promise_detected(combined, "DONE") is True

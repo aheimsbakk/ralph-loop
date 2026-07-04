@@ -7,10 +7,9 @@ import sys
 import time
 
 from .models import RalphLoopOptions
-from .runtime import (
+from .runtime import LoopInterrupted, LoopSupervisor
+from .utils import (
     CommandError,
-    LoopInterrupted,
-    LoopSupervisor,
     ensure_command_available,
     promise_detected,
     signal_exit_code,

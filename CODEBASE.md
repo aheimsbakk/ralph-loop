@@ -15,7 +15,9 @@
 | Package Init | `src/ralph_loop/__init__.py` | Package entry, exports `VERSION`. |
 | Interface Layer | `src/ralph_loop/cli.py` | Argument parsing and CLI entry orchestration. |
 | Orchestration Layer | `src/ralph_loop/commands.py` | High-level iteration loop and option validation. |
-| Runtime Layer | `src/ralph_loop/runtime.py` | Low-level execution, PTY management, and signal handling. |
+| Runtime Layer | `src/ralph_loop/runtime.py` | LoopSupervisor orchestrator and standalone utility functions. |
+| Process Runner | `src/ralph_loop/process_runner.py` | ProcessRunner and OutputReader for subprocess and PTY management. |
+| Signal Handler | `src/ralph_loop/signal_handler.py` | SignalHandler for signal installation and interruption management. |
 | Data Layer | `src/ralph_loop/models.py` | Data structures for configuration and results. |
 | Constants | `src/ralph_loop/constants.py` | Default values and version information. |
 | Package Entry | `src/ralph_loop/__main__.py` | Module-level entry point. |

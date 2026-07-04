@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 
@@ -17,6 +17,7 @@ def make_args(**overrides: object) -> argparse.Namespace:
         "completion_promise": "COMPLETE",
         "timeout": 3600,
         "sleep": 0,
+        "session_timeout": 0,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -29,9 +30,10 @@ def make_options(**overrides: object) -> RalphLoopOptions:
         "completion_promise": "COMPLETE",
         "timeout_seconds": 3600,
         "sleep_seconds": 0,
+        "session_timeout_seconds": 0,
     }
     values.update(overrides)
-    return RalphLoopOptions(**cast(dict[str, Any], values))
+    return RalphLoopOptions(**values)
 
 
 def test_build_options_validates_required_fields() -> None:
@@ -58,6 +60,13 @@ def test_build_options_validates_iteration_limit() -> None:
         CommandError, match="--max-iterations must be a non-negative integer"
     ):
         build_options(make_args(max_iterations=-1), ["opencode", "run"])
+
+
+def test_build_options_validates_session_timeout() -> None:
+    with pytest.raises(
+        CommandError, match="--session-timeout must be a non-negative integer"
+    ):
+        build_options(make_args(session_timeout=-1), ["opencode", "run"])
 
 
 def test_build_options_keeps_wrapped_command() -> None:
@@ -100,7 +109,8 @@ def test_run_command_completes_on_promise(
             return IterationResult(0, "iteration 1\n<promise>COMPLETE</promise>\n")
 
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
@@ -108,7 +118,7 @@ def test_run_command_completes_on_promise(
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "ralph-loop started." in captured.out
+    assert "ralph-loop started." in captured.err
     assert "ralph-loop completed at iteration 1." in captured.out
 
 
@@ -140,11 +150,13 @@ def test_run_command_ignores_promise_mentioned_before_final_line(
             return IterationResult(0, "<promise>COMPLETE</promise>\n")
 
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     supervisor = FakeSupervisor(tmp_path)
     monkeypatch.setattr(
-        "ralph_loop.commands.LoopSupervisor", lambda _directory: supervisor
+        "ralph_loop.commands.LoopSupervisor",
+        lambda _directory: supervisor,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
 
     exit_code = run_command(make_options(max_iterations=2), tmp_path)
@@ -178,11 +190,13 @@ def test_run_command_stops_at_max_iterations(
             return IterationResult(0, f"iteration {self.calls}\n")
 
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     supervisor = FakeSupervisor(tmp_path)
     monkeypatch.setattr(
-        "ralph_loop.commands.LoopSupervisor", lambda _directory: supervisor
+        "ralph_loop.commands.LoopSupervisor",
+        lambda _directory: supervisor,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
 
     exit_code = run_command(make_options(max_iterations=2), tmp_path)
@@ -215,14 +229,17 @@ def test_run_command_sleeps_between_iterations(
 
     sleeps: list[int] = []
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     supervisor = FakeSupervisor(tmp_path)
     monkeypatch.setattr(
-        "ralph_loop.commands.LoopSupervisor", lambda _directory: supervisor
+        "ralph_loop.commands.LoopSupervisor",
+        lambda _directory: supervisor,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr(
-        "ralph_loop.commands.time.sleep", lambda seconds: sleeps.append(seconds)
+        "ralph_loop.commands.time.sleep",
+        lambda seconds: sleeps.append(seconds),  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
 
     exit_code = run_command(make_options(max_iterations=2, sleep_seconds=3), tmp_path)
@@ -252,11 +269,13 @@ def test_run_command_does_not_sleep_after_promise(
 
     sleeps: list[int] = []
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
     monkeypatch.setattr(
-        "ralph_loop.commands.time.sleep", lambda seconds: sleeps.append(seconds)
+        "ralph_loop.commands.time.sleep",
+        lambda seconds: sleeps.append(seconds),  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
 
     exit_code = run_command(make_options(sleep_seconds=3), tmp_path)
@@ -286,7 +305,8 @@ def test_run_command_reports_iteration_failure(
             return IterationResult(23, "forced failure")
 
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
@@ -318,7 +338,8 @@ def test_run_command_treats_sigint_exit_as_cancelled(
             return IterationResult(130, "hello\n")
 
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
@@ -326,7 +347,7 @@ def test_run_command_treats_sigint_exit_as_cancelled(
     captured = capsys.readouterr()
 
     assert exit_code == 130
-    assert captured.err == ""
+    assert "ralph-loop stopped:" not in captured.err
 
 
 def test_run_command_marks_cancelled_on_signal(
@@ -348,7 +369,8 @@ def test_run_command_marks_cancelled_on_signal(
             raise LoopInterrupted(15)
 
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
 
@@ -377,13 +399,111 @@ def test_run_command_reports_timeout(
         ) -> IterationResult:
             return IterationResult(124, "slow\n")
 
+    sleeps: list[int] = []
     monkeypatch.setattr(
-        "ralph_loop.commands.ensure_command_available", lambda *_args: None
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
     )
     monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.sleep",
+        lambda seconds: sleeps.append(seconds),  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
 
     exit_code = run_command(make_options(timeout_seconds=12), tmp_path)
     captured = capsys.readouterr()
 
     assert exit_code == 124
     assert "iteration timed out after 12s" in captured.err
+    assert sleeps == []
+
+
+def test_run_command_session_timeout_terminates_loop(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    class FakeSupervisor:
+        def __init__(self, _directory: Path) -> None:
+            self.calls = 0
+
+        def install_signal_handlers(self) -> None:
+            return None
+
+        def restore_signal_handlers(self) -> None:
+            return None
+
+        def run_iteration(
+            self, _options: RalphLoopOptions, _iteration: int
+        ) -> IterationResult:
+            self.calls += 1
+            return IterationResult(0, f"iteration {self.calls}\n")
+
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+    supervisor = FakeSupervisor(tmp_path)
+    monkeypatch.setattr(
+        "ralph_loop.commands.LoopSupervisor",
+        lambda _directory: supervisor,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.sleep",
+        lambda seconds: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+    step = iter([0.0, 2.0])
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.monotonic",
+        lambda: next(step),  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+
+    exit_code = run_command(
+        make_options(session_timeout_seconds=1, max_iterations=100), tmp_path
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 125
+    assert "session timed out after 1s" in captured.err
+    assert supervisor.calls == 0
+
+
+def test_session_timeout_exit_code_is_125(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeSupervisor:
+        def __init__(self, _directory: Path) -> None:
+            return None
+
+        def install_signal_handlers(self) -> None:
+            return None
+
+        def restore_signal_handlers(self) -> None:
+            return None
+
+        def run_iteration(
+            self, _options: RalphLoopOptions, _iteration: int
+        ) -> IterationResult:
+            return IterationResult(0, "still running\n")
+
+    monkeypatch.setattr(
+        "ralph_loop.commands.ensure_command_available",
+        lambda *_args: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+    monkeypatch.setattr("ralph_loop.commands.LoopSupervisor", FakeSupervisor)
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.sleep",
+        lambda seconds: None,  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+    step = iter([0.0, 2.0])
+    monkeypatch.setattr(
+        "ralph_loop.commands.time.monotonic",
+        lambda: next(step),  # pyright: ignore[reportUnknownArgumentType, reportUnknownLambdaType]
+    )
+
+    exit_code = run_command(
+        make_options(session_timeout_seconds=1, max_iterations=100), tmp_path
+    )
+
+    assert exit_code == 125

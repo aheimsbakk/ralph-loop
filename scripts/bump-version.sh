@@ -8,10 +8,15 @@ if [[ $# -ne 1 ]]; then
 fi
 
 kind="$1"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(dirname "$SCRIPT_DIR")"
+
+export ROOT
 
 python3 - "$kind" <<'PY'
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import re
 import sys
@@ -42,9 +47,10 @@ def replace_in_file(path: Path, pattern: str, replacement: str) -> None:
 
 
 kind = sys.argv[1]
-pyproject = Path("/work/pyproject.toml")
-constants = Path("/work/src/ralph_loop/constants.py")
-lockfile = Path("/work/uv.lock")
+root = Path(os.environ["ROOT"])
+pyproject = root / "pyproject.toml"
+constants = root / "src" / "ralph_loop" / "constants.py"
+lockfile = root / "uv.lock"
 
 match = re.search(r'^version = "(\d+\.\d+\.\d+)"$', pyproject.read_text(encoding="utf-8"), re.MULTILINE)
 if not match:

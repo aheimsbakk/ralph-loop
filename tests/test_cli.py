@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 
 import pytest
@@ -142,3 +141,25 @@ def test_long_sleep_option_is_supported() -> None:
     args = parser.parse_args(["--sleep", "5"])
 
     assert args.sleep == 5
+
+
+def test_session_timeout_option_is_supported() -> None:
+    parser = cli.build_parser()
+    args = parser.parse_args(["--session-timeout", "300"])
+
+    assert args.session_timeout == 300
+
+
+def test_session_timeout_short_option_is_not_supported() -> None:
+    parser = cli.build_parser()
+    args = parser.parse_args(["-s", "5"])
+
+    assert args.sleep == 5
+    assert args.session_timeout == 0
+
+
+def test_session_timeout_default_is_zero() -> None:
+    parser = cli.build_parser()
+    args = parser.parse_args([])
+
+    assert args.session_timeout == 0

@@ -3,6 +3,7 @@ description: Interactive Copilot for fast, iterative pair-programming, coding, a
 mode: primary
 tools:
   question: false
+  task: false
   external_directory: false
 ---
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ralph-loop"
-version = "3.0.2"
+version = "3.1.0"
 description = "Installable ralph-loop wrapper for CLI commands"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,7 @@ ralph-loop = "ralph_loop.cli:main"
 
 [dependency-groups]
 dev = [
+  "pyright>=1.1.411",
   "pytest==9.0.3",
   "pytest-cov==6.0.0",
 ]
@@ -28,3 +29,4 @@ include = ["src", "tests"]
 extraPaths = ["src"]
 venvPath = "."
 venv = ".venv"
+typeCheckingMode = "strict"

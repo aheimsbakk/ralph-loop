@@ -27,6 +27,8 @@ def build_options(
         raise CommandError("--timeout must be a positive integer in seconds")
     if args.sleep < 0:
         raise CommandError("--sleep must be a non-negative integer in seconds")
+    if args.session_timeout < 0:
+        raise CommandError("--session-timeout must be a non-negative integer")
     command = _wrapped_command(wrapped_command)
 
     return RalphLoopOptions(
@@ -35,6 +37,7 @@ def build_options(
         completion_promise=completion_promise,
         timeout_seconds=args.timeout,
         sleep_seconds=args.sleep,
+        session_timeout_seconds=args.session_timeout,
     )
 
 
@@ -42,11 +45,21 @@ def run_command(options: RalphLoopOptions, directory: Path) -> int:
     ensure_command_available(options.wrapped_command, directory)
     _print_start_banner(options)
 
+    session_start = time.monotonic()
     supervisor = LoopSupervisor(directory)
     supervisor.install_signal_handlers()
     try:
         iteration = 1
         while True:
+            if options.session_timeout_seconds > 0:
+                elapsed = time.monotonic() - session_start
+                if elapsed >= options.session_timeout_seconds:
+                    print(
+                        f"ralph-loop stopped: session timed out after {options.session_timeout_seconds}s.",
+                        file=sys.stderr,
+                    )
+                    return 125
+
             result = supervisor.run_iteration(options, iteration)
 
             if result.exit_code != 0:
@@ -93,27 +106,37 @@ def _iteration_limit_label(max_iterations: int) -> str:
 
 
 def _print_start_banner(options: RalphLoopOptions) -> None:
-    print("ralph-loop started.")
-    print()
-    print(f"Command: {shlex.join(options.wrapped_command)}")
-    print(f"Iteration limit: {_iteration_limit_label(options.max_iterations)}")
-    print(f"Per-iteration timeout: {options.timeout_seconds}s")
-    print(f"Sleep between iterations: {options.sleep_seconds}s")
-    print(f"Completion promise: {options.completion_promise}")
-    print()
-    print("Stop conditions:")
+    print("ralph-loop started.", file=sys.stderr)
+    print(file=sys.stderr)
+    print(f"Command: {shlex.join(options.wrapped_command)}", file=sys.stderr)
     print(
-        f"  - Final non-empty visible line is <promise>{options.completion_promise}</promise>"
+        f"Iteration limit: {_iteration_limit_label(options.max_iterations)}",
+        file=sys.stderr,
     )
-    print("  - Reach the iteration limit")
-    print("  - Wrapped command exits with a non-zero code")
-    print("  - An iteration times out")
-    print("  - Press Ctrl+C")
+    print(f"Per-iteration timeout: {options.timeout_seconds}s", file=sys.stderr)
+    if options.session_timeout_seconds > 0:
+        print(
+            f"Session timeout: {options.session_timeout_seconds}s",
+            file=sys.stderr,
+        )
+    print(f"Sleep between iterations: {options.sleep_seconds}s", file=sys.stderr)
+    print(f"Completion promise: {options.completion_promise}", file=sys.stderr)
+    print(file=sys.stderr)
+    print("Stop conditions:", file=sys.stderr)
+    print(
+        f"  - Final non-empty visible line is <promise>{options.completion_promise}</promise>",
+        file=sys.stderr,
+    )
+    print("  - Reach the iteration limit", file=sys.stderr)
+    print("  - Wrapped command exits with a non-zero code", file=sys.stderr)
+    print("  - An iteration times out", file=sys.stderr)
+    print("  - The session times out", file=sys.stderr)
+    print("  - Press Ctrl+C", file=sys.stderr)
 
 
 def _wrapped_command(command: list[str]) -> tuple[str, ...]:
     if not command:
         raise CommandError("error: missing wrapped command after '--'")
-    if not all(isinstance(item, str) and item for item in command):
+    if not all(item and item.strip() for item in command):
         raise CommandError("wrapped command arguments must be non-empty strings")
     return tuple(command)

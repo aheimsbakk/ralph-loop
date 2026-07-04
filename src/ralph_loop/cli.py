@@ -9,6 +9,7 @@ from .commands import build_options, run_command
 from .constants import (
     DEFAULT_COMPLETION_PROMISE,
     DEFAULT_MAX_ITERATIONS,
+    DEFAULT_SESSION_TIMEOUT,
     DEFAULT_TIMEOUT_SECONDS,
     VERSION,
 )
@@ -25,6 +26,7 @@ HELP_TEXT = (
     "Notes:\n"
     "  -- is required before the wrapped command.\n"
     "  --timeout applies to each iteration, not the full ralph-loop session.\n"
+    "  --session-timeout applies to the entire ralph-loop session.\n"
     "  --sleep waits only between successful iterations.\n"
     "  --max-iterations 0 means run without an iteration limit.\n"
     "  ralph-loop passes stdin through to the wrapped command.\n"
@@ -73,6 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-t", "--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("-s", "--sleep", type=int, default=0)
+    parser.add_argument(
+        "--session-timeout",
+        type=int,
+        default=DEFAULT_SESSION_TIMEOUT,
+    )
     return parser
 
 

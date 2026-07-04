@@ -1,16 +1,29 @@
 # Master Rules
+- **Dependency:** Co-read `.opencode/RULES.md`.
+- **Workflow:** architecture -> implementation -> testing -> synchronization -> zero problems -> wrap-up.
 
-- ALWAYS read `.opencode/RULES.md` alongside this file. Both are required.
+## General Constraints
+- **CI/CD:** No `.github` workflows.
+- **Commits:** Conventional Commits (`<type>(<scope>): <summary>`). Use `docs(sync):` for documentation updates.
 
-Coding workflows: architecture -> implementation -> testing -> zero problems -> wrap-up.
+## Blueprint Generation (Architecture)
+Create a deterministic, language-agnostic specification.
+- **Core:** Define System Goals, Component Hierarchy, Data Flow, and State Management.
+- **Contracts:** Specify entry points, strict payload schemas, and error boundaries.
+- **Persistence:** Define abstract schemas, memory layouts, and state trees.
+- **External:** Detail env configs, auth flows, and hardware/service dependencies.
+- **Prohibited:** No executable code, framework configs, or language-specific structures/pseudocode. Allow generic state machine logic.
 
-## General Rules
+## Codebase Generation (Mapping)
+Map abstract architecture to concrete physical files.
+- **Structure:** Annotated directory tree and physical path mappings for Blueprint components.
+- **Specs:** Declare target languages, frameworks, dependency managers, and naming conventions.
+- **Entry Points:** Provide exact paths for main loops, servers, or CLI scripts.
+- **Language Rationale:** Document specific implementation choices, idioms, or structural adaptations required by the chosen language or framework.
+- **Prohibited:** No abstract architectural design rationale. Limit rationale strictly to language/framework implementation mapping.
 
-- **No CI/CD:** Do not create GitHub Actions or any CI/CD under `.github`.
-- **Commit Messages:** Use Conventional Commits format for all commits: `<type>(<scope>): <short summary>`. Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`. Reference the version when bumping (e.g. `chore(release): bump to v1.2.0`).
-
-## Documentation Files
-
-- **Structure:** `./BLUEPRINT.md` = Current Architecture, Data Models. `./CONTEXT.md` = Overview, Dependencies. Keep all brutally short.
-- **No Coding or Pseudocode:** `BLUEPRINT.md`, `CONTEXT.md`, and `PROJECT_RULES.md` must NEVER contain application source code, pseudocode, algorithmic logic, scripts, or config files. Write only high-level concepts, file paths, schemas, and API signatures.
-- **Project Rules Limits:** `./docs/PROJECT_RULES.md` must have MAX 5 non-redundant, short actionable rules. No tutorials or explanations.
+## Synchronization Protocol
+- **Trigger:** Code changes altering system goals, hierarchy, state, or directory structure.
+- **Action:** Update Blueprint architecture/contracts and Codebase repository maps/paths. Remove orphaned paths.
+- **Verification:** Execute `verify_codebase_sync.sh` to validate `codebase.md` physical paths.
+- **Requirement:** Synchronization commits must precede final feature/fix commits.

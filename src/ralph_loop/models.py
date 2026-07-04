@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .constants import (
     DEFAULT_COMPLETION_PROMISE,
     DEFAULT_MAX_ITERATIONS,
+    DEFAULT_SESSION_TIMEOUT,
     DEFAULT_TIMEOUT_SECONDS,
 )
 
@@ -16,6 +17,7 @@ class RalphLoopOptions:
     completion_promise: str = DEFAULT_COMPLETION_PROMISE
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
     sleep_seconds: int = 0
+    session_timeout_seconds: int = DEFAULT_SESSION_TIMEOUT
 
 
 @dataclass(slots=True)

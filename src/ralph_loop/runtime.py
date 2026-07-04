@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 import codecs
-import errno
+import logging
 import os
-from pathlib import Path
-import pty
-import re
 import select
 import shutil
-import signal
-import subprocess
+import sys
+import threading
 import time
-from types import FrameType
-from typing import Any, cast
+from pathlib import Path
+from typing import Any
 
-from .constants import TERMINATION_GRACE_SECONDS
+from .constants import MAX_OUTPUT_BYTES
 from .models import IterationResult, RalphLoopOptions
+from .process_runner import ProcessRunner, OutputReader
+from .signal_handler import SignalHandler
+
+logger = logging.getLogger(__name__)
 
 
 class CommandError(Exception):
@@ -29,10 +30,6 @@ class LoopInterrupted(Exception):
     def __init__(self, signum: int) -> None:
         super().__init__(signum)
         self.signum = signum
-
-
-PROMISE_PATTERN = re.compile(r"<promise>([\s\S]*?)</promise>")
-ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def ensure_command_available(command: tuple[str, ...], directory: Path) -> None:
@@ -52,9 +49,9 @@ def ensure_command_available(command: tuple[str, ...], directory: Path) -> None:
 
 
 def signal_exit_code(signum: int) -> int:
-    if signum == signal.SIGINT:
+    if signum == 2:  # SIGINT
         return 130
-    if signum == signal.SIGTERM:
+    if signum == 15:  # SIGTERM
         return 143
     return 1
 
@@ -64,11 +61,16 @@ def normalize_whitespace(value: str) -> str:
 
 
 def strip_terminal_control_sequences(value: str) -> str:
-    without_ansi = ANSI_ESCAPE_PATTERN.sub("", value)
+    import re
+
+    ansi_pattern = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+    without_ansi = ansi_pattern.sub("", value)
     return without_ansi.replace("\r", "")
 
 
 def promise_detected(text: str, expected: str | None) -> bool:
+    import re
+
     if not expected:
         return False
 
@@ -77,7 +79,8 @@ def promise_detected(text: str, expected: str | None) -> bool:
     if not lines:
         return False
 
-    match = PROMISE_PATTERN.fullmatch(lines[-1])
+    promise_pattern = re.compile(r"<promise>(.*?)</promise>", re.DOTALL)
+    match = promise_pattern.fullmatch(lines[-1])
     if not match:
         return False
 
@@ -85,21 +88,41 @@ def promise_detected(text: str, expected: str | None) -> bool:
 
 
 class LoopSupervisor:
+    """Orchestrates ProcessRunner, OutputStreamer, and SignalHandler in the main loop."""
+
     def __init__(self, directory: Path) -> None:
-        self.directory = directory
-        self.current_process: subprocess.Popen[bytes] | None = None
-        self.current_output_fd: int | None = None
-        self._previous_handlers: dict[int, Any] = {}
+        self._process_runner = ProcessRunner(directory)
+        self._signal_handler = SignalHandler()
+
+    @property
+    def current_process(self) -> Any:
+        return self._process_runner.process
+
+    @current_process.setter
+    def current_process(self, value: Any) -> None:
+        self._process_runner.process = value
+
+    @property
+    def current_output_fd(self) -> int | None:
+        return self._process_runner.master_fd
+
+    @current_output_fd.setter
+    def current_output_fd(self, value: int | None) -> None:
+        self._process_runner.master_fd = value
+
+    @property
+    def current_slave_fd(self) -> int | None:
+        return self._process_runner.slave_fd
+
+    @current_slave_fd.setter
+    def current_slave_fd(self, value: int | None) -> None:
+        self._process_runner.slave_fd = value
 
     def install_signal_handlers(self) -> None:
-        for signum in (signal.SIGINT, signal.SIGTERM):
-            self._previous_handlers[signum] = signal.getsignal(signum)
-            signal.signal(signum, self._handle_signal)
+        self._signal_handler.install()
 
     def restore_signal_handlers(self) -> None:
-        for signum, handler in self._previous_handlers.items():
-            signal.signal(signum, cast(Any, handler))
-        self._previous_handlers.clear()
+        self._signal_handler.restore()
 
     def run_iteration(
         self, options: RalphLoopOptions, iteration: int
@@ -107,131 +130,99 @@ class LoopSupervisor:
         suffix = f"/{options.max_iterations}" if options.max_iterations else ""
         print(f"=== ralph-loop iteration {iteration}{suffix} ===")
 
-        master_fd, slave_fd = pty.openpty()
-        process = subprocess.Popen(
-            [*options.wrapped_command],
-            cwd=self.directory,
-            stdin=None,
-            stdout=slave_fd,
-            stderr=slave_fd,
-        )
-        self.current_process = process
-        self.current_output_fd = master_fd
-        self._close_fd(slave_fd)
+        stdin_thread: threading.Thread | None = None
+        if not sys.stdin.isatty():
+            stdin_thread = threading.Thread(
+                target=self._forward_stdin,
+                args=(self._process_runner,),
+                daemon=True,
+            )
 
+        self._process_runner.start(options.wrapped_command, stdin_thread)
+
+        # Wire stop callback for signal handler
         output_parts: list[str] = []
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-        stdout_fd = master_fd
+
+        def stop_process() -> str:
+            return self._process_runner.stop(output_parts, decoder)
+
+        self._signal_handler.set_stop_callback(stop_process)
+
+        stdout_fd = self._process_runner.master_fd
+        assert stdout_fd is not None
         deadline = time.monotonic() + options.timeout_seconds
 
         try:
             while True:
                 if time.monotonic() >= deadline:
-                    output = self._stop_current_process(output_parts, decoder)
+                    output = stop_process()
                     return IterationResult(exit_code=124, output=output)
 
+                if self._signal_handler.interrupted.is_set():
+                    signum = self._signal_handler.signum
+                    assert signum is not None
+                    raise LoopInterrupted(signum)
+
                 ready, _, _ = select.select([stdout_fd], [], [], 0.1)
+                if self._signal_handler.interrupted.is_set():
+                    signum = self._signal_handler.signum
+                    assert signum is not None
+                    raise LoopInterrupted(signum)
+
                 if ready:
-                    if not self._read_available_output(
-                        stdout_fd, output_parts, decoder
-                    ):
+                    output_reader = OutputReader(output_parts, decoder)
+                    if not output_reader.read(stdout_fd):
                         break
 
-                if process.poll() is not None and not ready:
-                    if not self._read_available_output(
-                        stdout_fd, output_parts, decoder
-                    ):
+                process = self._process_runner.process
+                if process is not None and process.poll() is not None and not ready:
+                    output_reader = OutputReader(output_parts, decoder)
+                    if not output_reader.read(stdout_fd):
                         break
+
+                if self._signal_handler.interrupted.is_set():
+                    signum = self._signal_handler.signum
+                    assert signum is not None
+                    raise LoopInterrupted(signum)
         finally:
-            self.current_process = None
-            self.current_output_fd = None
-            self._close_fd(master_fd)
-            self._close_fd(slave_fd)
+            if stdin_thread is not None:
+                stdin_thread.join()
+            self._process_runner.cleanup()
 
-        output = self._finalize_output(output_parts, decoder)
-        return IterationResult(exit_code=process.returncode or 0, output=output)
-
-    def _handle_signal(self, signum: int, _frame: FrameType | None) -> None:
-        self._stop_current_process([], None)
-        raise LoopInterrupted(signum)
-
-    def _stop_current_process(
-        self,
-        output_parts: list[str],
-        decoder: codecs.IncrementalDecoder | None,
-    ) -> str:
-        process = self.current_process
-        if process is None:
-            return ""
-
-        stdout_fd = self.current_output_fd
-
-        if process.poll() is None:
-            process.terminate()
-
-        deadline = time.monotonic() + TERMINATION_GRACE_SECONDS
-        while True:
-            if stdout_fd is not None:
-                ready, _, _ = select.select([stdout_fd], [], [], 0.1)
-                if ready:
-                    if not self._read_available_output(
-                        stdout_fd, output_parts, decoder
-                    ):
-                        break
-
-            if process.poll() is not None:
-                break
-
-            if time.monotonic() >= deadline:
-                process.kill()
-                deadline = float("inf")
-
-        if stdout_fd is not None:
-            while self._read_available_output(stdout_fd, output_parts, decoder):
-                continue
-
-        return self._finalize_output(output_parts, decoder)
-
-    def _read_available_output(
-        self,
-        stdout_fd: int,
-        output_parts: list[str],
-        decoder: codecs.IncrementalDecoder | None,
-    ) -> bool:
-        try:
-            chunk = os.read(stdout_fd, 4096)
-        except OSError as error:
-            if error.errno in {errno.EBADF, errno.EIO}:
-                return False
-            raise
-
-        if not chunk:
-            return False
-
-        text = (
-            chunk.decode("utf-8", errors="replace")
-            if decoder is None
-            else decoder.decode(chunk)
+        self._truncate_output_parts(output_parts)
+        output = OutputReader(output_parts, decoder).finalize()
+        process = self._process_runner.process
+        return IterationResult(
+            exit_code=(process.returncode if process is not None else 0) or 0,
+            output=output,
         )
-        if text:
-            print(text, end="", flush=True)
-            output_parts.append(text)
-        return True
 
-    def _finalize_output(
-        self,
-        output_parts: list[str],
-        decoder: codecs.IncrementalDecoder | None,
-    ) -> str:
-        if decoder is not None:
-            tail = decoder.decode(b"", final=True)
-            if tail:
-                print(tail, end="", flush=True)
-                output_parts.append(tail)
-        return "".join(output_parts)
-
-    def _close_fd(self, file_descriptor: int) -> None:
+    def _forward_stdin(self, runner: ProcessRunner) -> None:
+        while True:
+            chunk = sys.stdin.buffer.read(4096)
+            if not chunk:
+                break
+            try:
+                if runner.process is not None and runner.process.stdin is not None:
+                    runner.process.stdin.write(chunk)
+            except (BrokenPipeError, OSError):
+                break
         try:
-            os.close(file_descriptor)
+            if runner.process is not None and runner.process.stdin is not None:
+                runner.process.stdin.close()
         except OSError:
+            pass
+
+    def _truncate_output_parts(self, output_parts: list[str]) -> None:
+        total_bytes = sum(len(part.encode("utf-8")) for part in output_parts)
+        if total_bytes <= MAX_OUTPUT_BYTES:
             return
+        start = 0
+        while start < len(output_parts):
+            if total_bytes <= MAX_OUTPUT_BYTES:
+                break
+            removed = len(output_parts[start].encode("utf-8"))
+            total_bytes -= removed
+            start += 1
+        del output_parts[:start]

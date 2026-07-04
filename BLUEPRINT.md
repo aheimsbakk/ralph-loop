@@ -32,7 +32,7 @@
 - The system maintains transient state for the current execution loop:
     - Current iteration count.
     - Elapsed time for the current iteration.
-    - Captured output buffers.
+    - Captured output buffers (bounded to 1 MB; oldest entries discarded when exceeded).
     - Captured signal status.
 
 ## Contracts

@@ -79,6 +79,7 @@ Do not print that tag before the work is complete.
 - `-i`, `--max-iterations`: Stop after this many successful iterations. Use `0` for unlimited iterations. Default: `20`.
 - `-c`, `--completion-promise`: Promise text ralph-loop waits for inside `<promise>...</promise>`. Default: `DONE`.
 - `-t`, `--timeout`: Per-iteration timeout in seconds. Default: `3600`.
+- `--session-timeout`: Global timeout for the entire ralph-loop session in seconds. Use `0` (default) for no session timeout.
 - `-s`, `--sleep`: Seconds to wait between successful iterations. Default: `0`.
 - `-h`, `--help`: Show help.
 - `-v`, `--version`: Show the ralph-loop version.
@@ -90,6 +91,7 @@ ralph-loop stops when one of these happens:
 - The child prints the matching promise tag on its final non-empty line.
 - The child exits with a non-zero code.
 - The iteration times out. ralph-loop returns exit code `124`.
+- The session times out. ralph-loop returns exit code `125`.
 - The iteration limit is reached. ralph-loop returns exit code `0`.
 - You press `Ctrl+C`. ralph-loop returns exit code `130`.
 
@@ -104,6 +106,18 @@ echo test | ralph-loop -i 1 -- sh -lc 'cat; printf "<promise>DONE</promise>\n"'
 ```
 
 If the command needs the same stdin on later iterations, you must make that data available another way, such as a file, an environment variable, or command arguments.
+
+### Piped input and hanging
+
+When stdin is piped and the child process blocks waiting for input that ralph-loop never forwards, the child hangs indefinitely. The per-iteration timeout (`--timeout`) does not cover this case because the child is still running; it is blocked on stdin, not stuck in computation.
+
+Use `--session-timeout` to guard against this:
+
+```bash
+echo test | ralph-loop --session-timeout 300 -- claude "Review the code. End with <promise>DONE</promise>."
+```
+
+This stops the entire session after 300 seconds, preventing an indefinite hang.
 
 ## Tests
 

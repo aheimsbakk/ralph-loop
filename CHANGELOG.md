@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-07-04
+
+- **why:** Fix loss of TTY for wrapped commands when piping input
+- **model:** llama-cpp/qwen-3.6-think-coding
+- **tags:** fix, pty, stdin
+
+### Fixed
+
+- Wrapped commands now correctly receive a TTY when no stdin is being forwarded (`src/ralph_loop/process_runner.py`).
+
 ## [3.1.0] - 2026-07-04
 
 - **why:** Add sleep delay, session timeout, and end-to-end tests; refactor runtime into focused modules

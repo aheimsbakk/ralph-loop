@@ -127,7 +127,7 @@ def test_loop_supervisor_runs_iteration(
         "gpt-5",
         "Prompt",
     ]
-    assert popen_kwargs["stdin"] is subprocess.PIPE
+    assert popen_kwargs["stdin"] == write_fd
     assert popen_kwargs["stdout"] == write_fd
     assert popen_kwargs["stderr"] == write_fd
     assert "=== ralph-loop iteration 2/5 ===" in captured.out
@@ -550,4 +550,4 @@ def test_loop_supervisor_no_stdin_pipe_when_terminal(
         1,
     )
 
-    assert popen_kwargs["stdin"] is subprocess.PIPE
+    assert popen_kwargs["stdin"] == write_fd

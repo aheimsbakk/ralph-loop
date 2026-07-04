@@ -31,10 +31,11 @@ class ProcessRunner:
         stdin_forwarder: threading.Thread | None = None,
     ) -> tuple[subprocess.Popen[bytes], int, int]:
         master_fd, slave_fd = pty.openpty()
+        stdin_target = slave_fd if stdin_forwarder is None else subprocess.PIPE
         process = subprocess.Popen(
             list(command),
             cwd=self.directory,
-            stdin=subprocess.PIPE,
+            stdin=stdin_target,
             stdout=slave_fd,
             stderr=slave_fd,
         )

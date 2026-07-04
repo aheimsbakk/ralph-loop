@@ -13,7 +13,7 @@ from .constants import (
     DEFAULT_TIMEOUT_SECONDS,
     VERSION,
 )
-from .runtime import CommandError
+from .utils import CommandError
 
 
 HELP_TEXT = (

@@ -20,6 +20,7 @@
 | Signal Handler | `src/ralph_loop/signal_handler.py` | SignalHandler for signal installation and interruption management. |
 | Data Layer | `src/ralph_loop/models.py` | Data structures for configuration and results. |
 | Constants | `src/ralph_loop/constants.py` | Default values and version information. |
+| Utilities | `src/ralph_loop/utils.py` | Shared helpers: command validation, signal codes, string normalization, promise detection. |
 | Package Entry | `src/ralph_loop/__main__.py` | Module-level entry point. |
 
 ### Tests (`tests/`)
@@ -28,12 +29,14 @@
 | CLI Tests | `tests/test_cli.py` | Verification of argument parsing and interface. |
 | Orchestration Tests | `tests/test_commands.py` | Verification of loop and command logic. |
 | Runtime Tests | `tests/test_runtime.py` | Verification of subprocess and signal handling. |
+| E2E Tests | `tests/test_e2e.py` | End-to-end tests with real subprocess spawning and PTY I/O. |
 | Test Config | `tests/conftest.py` | Pytest fixtures and configuration. |
 
 ### Scripts (`scripts/`)
 | Component | Physical Path | Description |
 | :--- | :--- | :--- |
 | Version Bump | `scripts/bump-version.sh` | Patches version across `pyproject.toml`, `constants.py`, and `uv.lock`. |
+| Changelog Validator | `scripts/validate-changelog.sh` | Validates CHANGELOG.md structure. |
 | Worklog Validator | `scripts/validate-worklog.sh` | Validates worklog YAML front-matter structure. |
 
 ## Specs

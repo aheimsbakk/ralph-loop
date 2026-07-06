@@ -8,6 +8,7 @@ from pathlib import Path
 import pty
 import select
 import subprocess
+import termios
 import threading
 import time
 
@@ -25,12 +26,50 @@ class ProcessRunner:
         self.master_fd: int | None = None
         self.slave_fd: int | None = None
 
+    @staticmethod
+    def _set_pty_raw(fd: int) -> None:
+        """Set the PTY slave to raw mode for character-by-character streaming.
+
+        Disables canonical mode (line buffering), echo, and output processing.
+        Without this, the kernel buffers PTY output until a newline arrives.
+        """
+        try:
+            attr = termios.tcgetattr(fd)
+            # Input flags: disable line-end mapping, flow control
+            attr[0] &= ~(
+                termios.IGNBRK
+                | termios.BRKINT
+                | termios.PARMRK
+                | termios.ISTRIP
+                | termios.INLCR
+                | termios.IGNCR
+                | termios.ICRNL
+                | termios.IXON
+            )
+            # Output flags: disable \n -> \r\n translation
+            attr[1] &= ~termios.OPOST
+            # Control flags: 8-bit characters
+            attr[2] &= ~(termios.CSIZE | termios.PARENB)
+            attr[2] |= termios.CS8
+            # Local flags: disable canonical mode, echo, signal chars
+            attr[3] &= ~(
+                termios.ECHO
+                | termios.ECHONL
+                | termios.ICANON
+                | termios.ISIG
+                | termios.IEXTEN
+            )
+            termios.tcsetattr(fd, termios.TCSANOW, attr)
+        except termios.error:
+            logger.warning("Could not set PTY to raw mode", exc_info=True)
+
     def start(
         self,
         command: tuple[str, ...],
         stdin_forwarder: threading.Thread | None = None,
     ) -> tuple[subprocess.Popen[bytes], int, int]:
         master_fd, slave_fd = pty.openpty()
+        self._set_pty_raw(slave_fd)
         stdin_target = slave_fd if stdin_forwarder is None else subprocess.PIPE
         process = subprocess.Popen(
             list(command),

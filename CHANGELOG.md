@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-07-06
+
+- **why:** Enable character-by-character PTY output streaming
+- **model:** opencode/deepseek-v4-flash-free
+- **tags:** streaming, pty, termios
+
+### Changed
+
+- `ProcessRunner.start()` now calls `_set_pty_raw()` to configure the PTY slave
+  in raw mode before spawning the child process. This disables canonical line
+  buffering (`ICANON`), output processing (`OPOST`), echo, and flow control,
+  so data written by the child becomes readable on the master fd immediately
+  instead of being buffered until a newline.
+
 ## [3.1.2] - 2026-07-04
 
 - **why:** Split runtime.py into focused modules and optimize output buffer size tracking

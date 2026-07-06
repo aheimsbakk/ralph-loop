@@ -38,6 +38,7 @@
 | Version Bump | `scripts/bump-version.sh` | Patches version across `pyproject.toml`, `constants.py`, and `uv.lock`. |
 | Changelog Validator | `scripts/validate-changelog.sh` | Validates CHANGELOG.md structure. |
 | Worklog Validator | `scripts/validate-worklog.sh` | Validates worklog YAML front-matter structure. |
+| Codebase Sync Verifier | `scripts/verify_codebase_sync.sh` | Validates all physical file paths in CODEBASE.md. |
 
 ## Specs
 - **Language:** Python
